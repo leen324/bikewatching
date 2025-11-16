@@ -74,37 +74,83 @@ map.on('load', async () => {
     console.log('Stations Array:', stations); 
     
 
-    // adding station markers
-    const svg = d3.select('#map').select('svg');
+ 
+    // step 4
+    let trips;
+    try {
+        const csv = "https://dsc106.com/labs/lab07/data/bluebikes-traffic-2024-03.csv";
+        trips = await d3.csv(csv, d => ({
+            start_station: d.start_station_id,
+            end_station: d.end_station_id,
+        }));
+        console.log('Loaded Traffic Data:', trips);
 
-    // Append circles to the SVG for each station
-    const circles = svg
-        .selectAll('circle')
-        .data(stations)
-        .enter()
-        .append('circle')
-        .attr('r', 5) // Radius of the circle
-        .attr('fill', 'steelblue') // Circle fill color
-        .attr('stroke', 'white') // Circle border color
-        .attr('stroke-width', 1) // Circle border thickness
-        .attr('opacity', 0.8); // Circle opacity
+        const departures = d3.rollup(
+            trips,
+            v => v.length,          // Count the number of trips
+            d => d.start_station // Group by start station
+        );
 
-    // Function to update circle positions when the map moves/zooms
-    function updatePositions() {
-        circles
-            .attr('cx', (d) => getCoords(d).cx) // Set the x-position using projected coordinates
-            .attr('cy', (d) => getCoords(d).cy); // Set the y-position using projected coordinates
-        }
+        const arrivals = d3.rollup(
+            trips,
+            v => v.length,         // Count the number of trips
+            d => d.end_station  // Group by end station
+        );
 
-    // Initial position update when map loads
-    // updatePositions();
+        console.log('Departures:', departures);
+        console.log('Arrivals:', arrivals);
 
-    // Reposition markers on map interactions
-    map.on('move', updatePositions); // Update during map movement
-    map.on('zoom', updatePositions); // Update during zooming
-    map.on('resize', updatePositions); // Update on window resize
-    map.on('moveend', updatePositions); // Final adjustment after movement ends
+        stations = stations.map((station) => {
+            let id = station.short_name;          
+            station.arrivals = arrivals.get(id) ?? 0;
+            station.departures = departures.get(id) ?? 0;
+            station.totalTraffic = station.arrivals + station.departures;
+            return station;
+        });
+
+        const radiusScale = d3
+            .scaleSqrt()
+            .domain([0, d3.max(stations, (d) => d.totalTraffic)])
+            .range([0, 25]);
+
+        
+        // adding station markers
+        const svg = d3.select('#map').select('svg');
+
+        // Append circles to the SVG for each station
+        const circles = svg
+            .selectAll('circle')
+            .data(stations)
+            .enter()
+            .append('circle')
+            .attr('r', d => radiusScale(d.totalTraffic))
+            .attr('fill', 'steelblue') // Circle fill color
+            .attr('stroke', 'white') // Circle border color
+            .attr('stroke-width', 1) // Circle border thickness
+            .attr('opacity', 0.8); // Circle opacity
+
+        // Function to update circle positions when the map moves/zooms
+        function updatePositions() {
+            circles
+                .attr('cx', (d) => getCoords(d).cx) // Set the x-position using projected coordinates
+                .attr('cy', (d) => getCoords(d).cy); // Set the y-position using projected coordinates
+            }
+
+        // Initial position update when map loads
+        //updatePositions();
+
+        // Reposition markers on map interactions
+        map.on('move', updatePositions); // Update during map movement
+        map.on('zoom', updatePositions); // Update during zooming
+        map.on('resize', updatePositions); // Update on window resize
+        map.on('moveend', updatePositions); // Final adjustment after movement ends
+
+
+    } catch (error) {
+        console.error('Error loading CSV:', error);
+    }
+
+    
 
 });
-
 
