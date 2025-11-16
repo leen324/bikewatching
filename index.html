@@ -15,7 +15,17 @@
     <h1>🚴🏼‍♀️ Bikewatching</h1>
     <!-- <p>Geospatial visualization </p> -->
 
+    <label style="margin-left: auto;">
+        Filter by time:
+        <input type="range" id="timeSlider" min="-1" max="1440" value="-1">
+        <time id="selectedTime" style="display: block;">--:--</time>
+        <em id="anyTime" style="display: block; color: #999;">(any time)</em>
+    </label>
+    
+
+
     <script src="map.js" type="module"></script>
+
 
     <div id="map">
         <svg></svg>
